@@ -14,6 +14,7 @@ const SRV_LIST_SEP = ";"
 type CLIArgs struct {
     servers string
     quorum uint
+    ipv6 bool
 }
 
 func parse_args() CLIArgs {
@@ -24,12 +25,17 @@ func parse_args() CLIArgs {
                    "stun.voipbuster.com:3478;stun.voipstunt.com:3478",
                    "STUN server list")
     flag.UintVar(&args.quorum, "q", 2, "required number of matches for success")
+    flag.BoolVar(&args.ipv6, "6", false, "use IPv6")
     flag.Parse()
     return args
 }
 
-func getAddr(server string) (string, error) {
-    c, err := stun.Dial("udp", server)
+func getAddr(server string, ipv6 bool) (string, error) {
+    family := "udp4"
+    if ipv6 {
+        family = "udp6"
+    }
+    c, err := stun.Dial(family, server)
     if err != nil {
         return "", err
     }
@@ -69,8 +75,8 @@ func getAddr(server string) (string, error) {
     return result, res_err
 }
 
-func worker(server string, out chan<- string, err chan<- error) {
-    res_addr, res_err := getAddr(server)
+func worker(server string, ipv6 bool, out chan<- string, err chan<- error) {
+    res_addr, res_err := getAddr(server, ipv6)
     if res_err != nil {
         err <- res_err
     } else {
@@ -96,10 +102,10 @@ func run() int {
     var wg sync.WaitGroup
     for _, v := range srvList {
         wg.Add(1)
-        go func() {
+        go func(srv string) {
             defer wg.Done()
-            worker(v, results, errors)
-        }()
+            worker(srv, args.ipv6, results, errors)
+        }(v)
     }
     done_event := make(chan struct{}, 1)
     go func() {

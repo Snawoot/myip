@@ -43,6 +43,7 @@ $ myip
 
 ```
 Usage of myip:
+  -6	use IPv6
   -q uint
     	required number of matches for success (default 2)
   -s string
