@@ -1,6 +1,6 @@
 # myip
 
-Get your external IP address using public STUN servers reliably and quickly. Useful for scripting. Program issues parallel queries to public STUN servers to determine public IP address and returns result as soon as quorum of matching responses reached. By default quorum is 2.
+Reliably and quickly get your external IP address from public STUN servers. Program issues parallel queries to public STUN servers to determine public IP address and returns result as soon as quorum of matching responses reached. By default quorum is 2. Useful for scripting.
 
 ## Installation
 
