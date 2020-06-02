@@ -36,15 +36,23 @@ func getAddr(server string) (string, error) {
 		if res.Error != nil {
 			result = ""
             res_err = res.Error
+            return
 		}
 		// Decoding XOR-MAPPED-ADDRESS attribute from message.
-		var addr stun.XORMappedAddress
-		if err := addr.GetFrom(res.Message); err != nil {
-			result = ""
-            res_err = err
-		}
-		result = addr.IP.String()
-        res_err = nil
+		var xorAddr stun.XORMappedAddress
+		if err := xorAddr.GetFrom(res.Message); err == nil {
+            result = xorAddr.IP.String()
+            res_err = nil
+		} else {
+            var mappedAddr stun.MappedAddress
+            if err := mappedAddr.GetFrom(res.Message); err == nil {
+                result = mappedAddr.IP.String()
+                res_err = nil
+            } else {
+                result = ""
+                res_err = err
+            }
+        }
 	}); err != nil {
 		return "", err
 	}
