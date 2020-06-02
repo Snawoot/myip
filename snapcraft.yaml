@@ -1,5 +1,5 @@
 name: go-myip
-version: '1.0.0'
+version: '1.1.0'
 summary: Reliably and quickly get your external IP address
 description: >
   Reliably and quickly get your external IP address from public STUN servers.
