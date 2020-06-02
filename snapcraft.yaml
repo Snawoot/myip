@@ -1,6 +1,6 @@
 name: go-myip
 version: '1.0.0'
-summary: Dumbiest HTTP proxy ever.
+summary: Reliably and quickly get your external IP address
 description: >
   Reliably and quickly get your external IP address from public STUN servers.
   See documentation for details:
