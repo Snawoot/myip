@@ -5,15 +5,25 @@ import (
     "flag"
     "fmt"
     "gortc.io/stun"
+    "strings"
+    "sync"
 )
 
+const SRV_LIST_SEP = ";"
+
 type CLIArgs struct {
-    server string
+    servers string
+    quorum uint
 }
 
 func parse_args() CLIArgs {
     var args CLIArgs
-    flag.StringVar(&args.server, "s", "stun.l.google.com:19302", "STUN server address")
+    flag.StringVar(&args.servers, "s", "stun.l.google.com:19302;" +
+                   "stun.ekiga.net:3478;stun.ideasip.com:3478;" +
+                   "stun.schlund.de:3478;stun.voiparound.com:3478;" +
+                   "stun.voipbuster.com:3478;stun.voipstunt.com:3478",
+                   "STUN server list")
+    flag.UintVar(&args.quorum, "q", 2, "required number of matches for success")
     flag.Parse()
     return args
 }
@@ -23,6 +33,7 @@ func getAddr(server string) (string, error) {
     if err != nil {
         return "", err
     }
+    defer c.Close()
 
     message, err := stun.Build(stun.TransactionID, stun.BindingRequest)
     if err != nil {
@@ -38,7 +49,6 @@ func getAddr(server string) (string, error) {
             res_err = res.Error
             return
 		}
-		// Decoding XOR-MAPPED-ADDRESS attribute from message.
 		var xorAddr stun.XORMappedAddress
 		if err := xorAddr.GetFrom(res.Message); err == nil {
             result = xorAddr.IP.String()
@@ -59,15 +69,65 @@ func getAddr(server string) (string, error) {
     return result, res_err
 }
 
+func worker(server string, out chan<- string, err chan<- error) {
+    res_addr, res_err := getAddr(server)
+    if res_err != nil {
+        err <- res_err
+    } else {
+        out <- res_addr
+    }
+}
+
 func run() int {
     args := parse_args()
 
-    addr, err := getAddr(args.server)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Error: %v", err)
-        return 3
+    srvList := strings.Split(args.servers, SRV_LIST_SEP)
+    if len(srvList) == 0 {
+        fmt.Fprintf(os.Stderr, "Error: empty server list\n")
+        return 2
     }
-    fmt.Println(addr)
+    if uint(len(srvList)) < args.quorum {
+        fmt.Fprintf(os.Stderr, "Error: quorum is higher than server list length\n")
+    }
+
+    results := make(chan string)
+    errors := make(chan error)
+
+    var wg sync.WaitGroup
+    for _, v := range srvList {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            worker(v, results, errors)
+        }()
+    }
+    done_event := make(chan struct{}, 1)
+    go func() {
+        wg.Wait()
+        done_event <-struct{}{}
+    }()
+
+    resultMap := make(map[string]uint)
+    var errorList []error
+
+    for {
+        select {
+        case err := <-errors:
+            errorList = append(errorList, err)
+        case res := <-results:
+            resultMap[res]++
+            if resultMap[res] >= args.quorum {
+                fmt.Println(res)
+                return 0
+            }
+        case <-done_event:
+            fmt.Fprintln(os.Stderr, "All servers queried, but quorum wasn't reached")
+            for _, v := range errorList {
+                fmt.Fprintf(os.Stderr, "Error: %v\n", v)
+            }
+            return 3
+        }
+    }
     return 0
 }
 
