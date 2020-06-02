@@ -1,0 +1,22 @@
+name: go-myip
+version: '1.0.0'
+summary: Dumbiest HTTP proxy ever.
+description: >
+  Reliably and quickly get your external IP address from public STUN servers.
+  See documentation for details:
+  https://github.com/Snawoot/myip/blob/master/README.md
+
+confinement: strict
+base: core18
+
+parts:
+  go-myip:
+    plugin: go
+    go-importpath: github.com/Snawoot/myip
+    source: .
+    build-packages:
+      - gcc
+
+apps:
+  go-myip:
+    command: bin/myip
