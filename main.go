@@ -4,9 +4,10 @@ import (
     "os"
     "flag"
     "fmt"
-    "gortc.io/stun"
     "strings"
-    "sync"
+    "github.com/Snawoot/extip"
+    "context"
+    "time"
 )
 
 const SRV_LIST_SEP = ";"
@@ -14,126 +15,52 @@ const SRV_LIST_SEP = ";"
 type CLIArgs struct {
     servers string
     quorum uint
+    timeout time.Duration
     ipv6 bool
 }
 
-func parse_args() CLIArgs {
+func parseArgs() CLIArgs {
     var args CLIArgs
-    flag.StringVar(&args.servers, "s", "stun.l.google.com:19302;" +
-                   "stun.ekiga.net:3478;stun.ideasip.com:3478;" +
-                   "stun.schlund.de:3478;stun.voiparound.com:3478;" +
-                   "stun.voipbuster.com:3478;stun.voipstunt.com:3478",
+    flag.StringVar(&args.servers, "s", strings.Join(extip.PublicServerList, SRV_LIST_SEP),
                    "STUN server list")
     flag.UintVar(&args.quorum, "q", 2, "required number of matches for success")
+    flag.DurationVar(&args.timeout, "t", 0, "hard timeout. Examples values: 1m, 3s, 1s500ms")
     flag.BoolVar(&args.ipv6, "6", false, "use IPv6")
     flag.Parse()
     return args
 }
 
-func getAddr(server string, ipv6 bool) (string, error) {
-    family := "udp4"
-    if ipv6 {
-        family = "udp6"
-    }
-    c, err := stun.Dial(family, server)
-    if err != nil {
-        return "", err
-    }
-    defer c.Close()
-
-    message, err := stun.Build(stun.TransactionID, stun.BindingRequest)
-    if err != nil {
-        return "", err
-    }
-
-    var result string
-    var res_err error
-
-    if err := c.Do(message, func(res stun.Event) {
-		if res.Error != nil {
-			result = ""
-            res_err = res.Error
-            return
-		}
-		var xorAddr stun.XORMappedAddress
-		if err := xorAddr.GetFrom(res.Message); err == nil {
-            result = xorAddr.IP.String()
-            res_err = nil
-		} else {
-            var mappedAddr stun.MappedAddress
-            if err := mappedAddr.GetFrom(res.Message); err == nil {
-                result = mappedAddr.IP.String()
-                res_err = nil
-            } else {
-                result = ""
-                res_err = err
-            }
-        }
-	}); err != nil {
-		return "", err
-	}
-    return result, res_err
-}
-
-func worker(server string, ipv6 bool, out chan<- string, err chan<- error) {
-    res_addr, res_err := getAddr(server, ipv6)
-    if res_err != nil {
-        err <- res_err
-    } else {
-        out <- res_addr
-    }
-}
-
 func run() int {
-    args := parse_args()
+    args := parseArgs()
 
-    srvList := strings.Split(args.servers, SRV_LIST_SEP)
-    if len(srvList) == 0 {
-        fmt.Fprintf(os.Stderr, "Error: empty server list\n")
-        return 2
-    }
-    if uint(len(srvList)) < args.quorum {
-        fmt.Fprintf(os.Stderr, "Error: quorum is higher than server list length\n")
+    var ctx context.Context
+    if args.timeout == 0 {
+        ctx = context.Background()
+    } else {
+        ctx, _ = context.WithTimeout(context.Background(), args.timeout)
     }
 
-    results := make(chan string)
-    errors := make(chan error)
-
-    var wg sync.WaitGroup
-    for _, v := range srvList {
-        wg.Add(1)
-        go func(srv string) {
-            defer wg.Done()
-            worker(srv, args.ipv6, results, errors)
-        }(v)
-    }
-    done_event := make(chan struct{}, 1)
-    go func() {
-        wg.Wait()
-        done_event <-struct{}{}
-    }()
-
-    resultMap := make(map[string]uint)
-    var errorList []error
-
-    for {
-        select {
-        case err := <-errors:
-            errorList = append(errorList, err)
-        case res := <-results:
-            resultMap[res]++
-            if resultMap[res] >= args.quorum {
-                fmt.Println(res)
-                return 0
+    ip, err := extip.QueryMultipleServers(ctx,
+                                          strings.Split(args.servers, SRV_LIST_SEP),
+                                          args.quorum,
+                                          args.ipv6)
+    if err != nil {
+        switch res := err.(type) {
+        case extip.InconclusiveResult:
+            fmt.Fprintf(os.Stderr, "Inconclusive result:\n")
+            fmt.Fprintf(os.Stderr, "Required quorum = %v\n", res.Quorum)
+            for k, v := range res.Results {
+                fmt.Fprintf(os.Stderr, "Server %s responded: %s\n", k, v)
             }
-        case <-done_event:
-            fmt.Fprintln(os.Stderr, "All servers queried, but quorum wasn't reached")
-            for _, v := range errorList {
-                fmt.Fprintf(os.Stderr, "Error: %v\n", v)
+            for k, v := range res.Errors {
+                fmt.Fprintf(os.Stderr, "Server %s failed: %v\n", k, v)
             }
-            return 3
+        default:
+            fmt.Fprintf(os.Stderr, "Error: %v\n", err)
         }
+        return 3
     }
+    fmt.Println(ip)
     return 0
 }
 

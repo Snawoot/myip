@@ -1,2 +1,4 @@
+github.com/Snawoot/extip v1.0.0 h1:sQ2FjLNw58dtXVGIvRcLUcCYde6zmYjF5g9Xlr5g8Qg=
+github.com/Snawoot/extip v1.0.0/go.mod h1:myMEtzrHgaBQdj8Rei5SkgwauJLsSDB2Sy8AePwhkB0=
 gortc.io/stun v1.22.2 h1:pDsirGr1eAX0qU4UsnI/DGtyOy38cTZgcX5Iamn/kSk=
 gortc.io/stun v1.22.2/go.mod h1:XD5lpONVyjvV3BgOyJFNo0iv6R2oZB4L+weMqxts+zg=
