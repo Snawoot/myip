@@ -2,6 +2,19 @@
 
 Reliably and quickly get your external IP address from public STUN servers. Program issues parallel queries to public STUN servers to determine public IP address and returns result as soon as quorum of matching responses reached. By default quorum is 2. Useful for scripting.
 
+---
+
+:heart: :heart: :heart:
+
+You can say thanks to the author by donations to these wallets:
+
+- ETH: `0xB71250010e8beC90C5f9ddF408251eBA9dD7320e`
+- BTC:
+  - Legacy: `1N89PRvG1CSsUk9sxKwBwudN6TjTPQ1N8a`
+  - Segwit: `bc1qc0hcyxc000qf0ketv4r44ld7dlgmmu73rtlntw`
+
+---
+
 ## Installation
 
 #### Binary download
