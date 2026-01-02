@@ -4,9 +4,6 @@ BUILDOPTS = -a -tags netgo -trimpath -asmflags -trimpath
 LDFLAGS = -ldflags '-s -w -extldflags "-static"'
 LDFLAGS_NATIVE = -ldflags '-s -w'
 
-NDK_CC_ARM = $(abspath ../../ndk-toolchain-arm/bin/arm-linux-androideabi-gcc)
-NDK_CC_ARM64 = $(abspath ../../ndk-toolchain-arm64/bin/aarch64-linux-android21-clang)
-
 GO := go
 
 src = $(wildcard *.go */*.go */*/*.go) go.mod go.sum
@@ -18,9 +15,6 @@ all: bin-linux-amd64 bin-linux-386 bin-linux-arm bin-linux-arm64 \
 	bin-openbsd-amd64 bin-openbsd-386 bin-openbsd-arm bin-openbsd-arm64 \
 	bin-darwin-amd64 bin-darwin-arm64 \
 	bin-windows-amd64 bin-windows-386 bin-windows-arm64
-
-allplus: all \
-	bin-android-arm bin-android-arm64
 
 bin-native: $(OUTSUFFIX)
 bin-linux-amd64: $(OUTSUFFIX).linux-amd64
@@ -44,8 +38,6 @@ bin-darwin-arm64: $(OUTSUFFIX).darwin-arm64
 bin-windows-amd64: $(OUTSUFFIX).windows-amd64.exe
 bin-windows-386: $(OUTSUFFIX).windows-386.exe
 bin-windows-arm64: $(OUTSUFFIX).windows-arm64.exe
-bin-android-arm: $(OUTSUFFIX).android-arm
-bin-android-arm64: $(OUTSUFFIX).android-arm64
 
 $(OUTSUFFIX): $(src)
 	$(GO) build $(LDFLAGS_NATIVE) -o $@
@@ -113,12 +105,6 @@ $(OUTSUFFIX).windows-386.exe: $(src)
 $(OUTSUFFIX).windows-arm64.exe: $(src)
 	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 $(GO) build $(BUILDOPTS) $(LDFLAGS) -o $@
 
-$(OUTSUFFIX).android-arm: $(src)
-	CC=$(NDK_CC_ARM) CGO_ENABLED=1 GOOS=android GOARCH=arm GOARM=7 $(GO) build $(LDFLAGS_NATIVE) -o $@
-
-$(OUTSUFFIX).android-arm64: $(src)
-	CC=$(NDK_CC_ARM64) CGO_ENABLED=1 GOOS=android GOARCH=arm64 $(GO) build $(LDFLAGS_NATIVE) -o $@
-
 clean:
 	rm -f bin/*
 
@@ -153,6 +139,4 @@ install:
 	bin-darwin-arm64 \
 	bin-windows-amd64 \
 	bin-windows-386 \
-	bin-windows-arm64 \
-	bin-android-arm \
-	bin-android-arm64
+	bin-windows-arm64
