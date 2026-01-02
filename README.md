@@ -21,7 +21,7 @@ go install
 Docker image is available as well:
 
 ```sh
-docker run --rm yarmak/myip
+docker run --rm ghcr.io/snawoot/myip
 ```
 
 #### Snap Store
